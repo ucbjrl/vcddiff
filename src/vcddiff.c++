@@ -62,6 +62,7 @@ void print_usage(FILE *f)
                " signals in file b\n"
                "  --a-tspc Number of timesteps per cycle in file a\n"
                "  --b-tspc Number of timesteps per cycle in file b\n"
+               "  --skip   Number of cycles to skip in both files\n"
                "  --version: Print the version number and exit\n"
                "  --help:    Print this help text and exit\n");
 }
@@ -75,11 +76,13 @@ int main(int argc, char *argv[])
         {"raise-b-signals", 1, NULL, 'b'},
         {"a-tspc", 1, NULL, 'c'},
         {"b-tspc", 1, NULL, 'd'},
+        {"skip", 1, NULL, 's'},
         {NULL, 0, NULL, 0}
     };
     int raise_a_signals = 0, raise_b_signals = 0;
     int a_tspc = 1, b_tspc = 1;
     int opt;
+    int skip = 0;
 
     while ((opt = getopt_long(argc, argv, "", options, NULL)) > 0) {
         switch (opt) {
@@ -101,6 +104,9 @@ int main(int argc, char *argv[])
         case 'd':
             b_tspc = atoi(optarg);
             break;
+        case 's':
+            skip = atoi(optarg);
+            break;
         default:
             print_usage(stderr);
             exit(EXIT_FAILURE);
@@ -121,11 +127,17 @@ int main(int argc, char *argv[])
 
     /* Read the given files all the way through. */
     any_failures = false;
+    int to_skip = skip;
     while (a.has_more_cycles() && b.has_more_cycles()) {
         /* Here's where we move to the next cycle. */
         a.step();
         b.step();
 
+        /* Is it time to compare signals? */
+        if (to_skip > 0) {
+            to_skip -= 1;
+            continue;
+        }
         /* Checks for differences between these two functions. */
         has_printed_cycle = false;
         if (libvcd::vcd::diff_this_cycle(a, b, &sig_diff) == false)
